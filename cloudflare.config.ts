@@ -6,6 +6,7 @@ export default defineConfig({
   worker: {
     name: "cowork-square",
     compatibilityDate: "2026-10-30",
+    workersDev: true,
     entrypoint,
     // web/dist は wrangler.config.ts の assetsDirectory で指定。
     // /api/* だけ Worker が先に処理し、それ以外は SPA を配信する。
