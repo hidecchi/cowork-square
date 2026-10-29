@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!.cloudflare", "!node_modules"]
+    "includes": ["**", "!.next", "!node_modules"]
   },
   "formatter": {
     "enabled": true,

@@ -1,14 +1,19 @@
+"use client";
+
 import { useCallback, useEffect, useState } from "react";
-import { fetchSellableProduct } from "./api/catalog";
-import { createTerminalCheckout, pollCheckoutUntilDone } from "./api/checkout";
-import { QuantityStepper } from "./components/QuantityStepper";
-import { MAX_QUANTITY } from "./config";
+import { QuantityStepper } from "@/components/QuantityStepper";
+import { fetchSellableProduct } from "@/lib/client/catalog";
+import {
+  createTerminalCheckout,
+  pollCheckoutUntilDone,
+} from "@/lib/client/checkout";
+import { MAX_QUANTITY } from "@/lib/config";
 import {
   PAYMENT_METHODS,
   type PaymentMethodOption,
   type PaymentType,
-} from "./paymentMethods";
-import type { SellableProduct } from "./types/catalog";
+} from "@/lib/paymentMethods";
+import type { SellableProduct } from "@/lib/types/catalog";
 
 type Screen = "cart" | "payment" | "processing" | "complete" | "canceled";
 
@@ -27,7 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
   CANCEL_REQUESTED: "キャンセル処理中…",
 };
 
-export default function App() {
+export function CheckoutApp() {
   const [product, setProduct] = useState<SellableProduct | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);

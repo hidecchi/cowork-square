@@ -1,13 +1,22 @@
-import type { PaymentType } from "../paymentMethods";
-import type { SellableProduct } from "../types/catalog";
-import { apiHeaders, apiUrl, readApiError } from "./client";
+import type { PaymentType } from "@/lib/paymentMethods";
+import type { SellableProduct } from "@/lib/types/catalog";
+
+function apiHeaders(json = false): HeadersInit {
+  const headers: Record<string, string> = {};
+  if (json) headers["Content-Type"] = "application/json";
+  const key = process.env.NEXT_PUBLIC_API_KEY;
+  if (key) headers["X-Api-Key"] = key;
+  return headers;
+}
 
 type TerminalCheckoutResponse = {
   checkout?: { id?: string };
+  error?: string;
 };
 
 type CheckoutStatusResponse = {
   status: string;
+  error?: string;
 };
 
 export async function createTerminalCheckout(
@@ -17,7 +26,7 @@ export async function createTerminalCheckout(
 ): Promise<string> {
   const amount = product.unitPrice * quantity;
 
-  const res = await fetch(apiUrl("/api/create-terminal-checkout"), {
+  const res = await fetch("/api/create-terminal-checkout", {
     method: "POST",
     headers: {
       ...apiHeaders(true),
@@ -43,9 +52,7 @@ export async function createTerminalCheckout(
     }),
   });
 
-  const data = (await res.json()) as TerminalCheckoutResponse & {
-    error?: string;
-  };
+  const data = (await res.json()) as TerminalCheckoutResponse;
   if (!res.ok) {
     throw new Error(data.error ?? "決済の開始に失敗しました");
   }
@@ -61,13 +68,14 @@ export async function getCheckoutStatus(
   checkoutId: string,
 ): Promise<CheckoutStatusResponse> {
   const qs = new URLSearchParams({ checkoutId });
-  const res = await fetch(apiUrl(`/api/get-checkout-status?${qs}`), {
+  const res = await fetch(`/api/get-checkout-status?${qs}`, {
     headers: apiHeaders(),
   });
+  const data = (await res.json()) as CheckoutStatusResponse;
   if (!res.ok) {
-    throw new Error(await readApiError(res, "決済状態の確認に失敗しました"));
+    throw new Error(data.error ?? "決済状態の確認に失敗しました");
   }
-  return (await res.json()) as CheckoutStatusResponse;
+  return data;
 }
 
 export function pollCheckoutUntilDone(

@@ -1,4 +1,4 @@
-import type { SquareClient } from "../square/client";
+import type { SquareClient } from "./client";
 
 type CatalogObject = {
   type?: string;

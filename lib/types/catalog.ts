@@ -11,7 +11,6 @@ export type CatalogItem = {
   priceMoney?: CatalogMoney | null;
 };
 
-/** レジ画面で使う 1 商品分 */
 export type SellableProduct = {
   itemId: string;
   name: string;

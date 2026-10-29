@@ -1,8 +1,8 @@
 node_modules/
-web/node_modules/
-web/dist/
-.cloudflare/
-.wrangler/
-.dev.vars
+.next/
+out/
 .env
+.env.local
+.env.*.local
 *.log
+.DS_Store

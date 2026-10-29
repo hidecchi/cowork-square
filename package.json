@@ -1,26 +1,28 @@
 {
   "name": "cowork-square",
   "private": true,
-  "type": "module",
   "version": "0.1.0",
   "scripts": {
-    "dev": "cf dev",
-    "dev:web": "npm run dev --prefix web",
-    "build:web": "npm run build --prefix web",
-    "build": "npm run build:web",
-    "deploy": "npm run build:web && cf deploy",
-    "typecheck": "cf workers types && tsc --noEmit",
-    "typecheck:web": "npm run typecheck --prefix web",
-    "cf-typegen": "cf workers types",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
   },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "next": "^15.5.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
-    "@cloudflare/workers-types": "^5.20261023.1",
-    "cf": "^1.0.0-beta.25",
-    "typescript": "^5.9.3",
-    "wrangler": "^4.45.0"
+    "@types/node": "^22.18.12",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "^5.9.3"
   }
 }

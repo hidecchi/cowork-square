@@ -1,5 +1,9 @@
-import type { Env } from "../env";
-import { HttpError, squareApiVersion, squareBaseUrl } from "../http";
+import {
+  HttpError,
+  type SquareEnv,
+  squareApiVersion,
+  squareBaseUrl,
+} from "./env";
 
 export type SquarePaymentType =
   | "CARD_PRESENT"
@@ -40,7 +44,7 @@ export type CreateTerminalCheckoutInput = {
 };
 
 export class SquareClient {
-  constructor(private readonly env: Env) {}
+  constructor(private readonly env: SquareEnv) {}
 
   private headers(idempotencyKey?: string): HeadersInit {
     const h: Record<string, string> = {

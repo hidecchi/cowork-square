@@ -11,7 +11,6 @@
   --muted: #94a3b8;
   --accent: #38bdf8;
   --accent-strong: #0ea5e9;
-  --danger: #f87171;
   --ok: #4ade80;
 }
 
@@ -24,10 +23,6 @@ body {
   min-height: 100dvh;
   background: radial-gradient(circle at top, #1e3a5f 0%, var(--bg) 55%);
   color: var(--text);
-}
-
-#root {
-  min-height: 100dvh;
 }
 
 .app {
