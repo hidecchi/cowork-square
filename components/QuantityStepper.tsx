@@ -16,6 +16,7 @@ export function QuantityStepper({ quantity, min = 1, max, onChange }: Props) {
         className="stepper-btn"
         onClick={dec}
         disabled={quantity <= min}
+        aria-label="数量を減らす"
       >
         −
       </button>
@@ -24,9 +25,10 @@ export function QuantityStepper({ quantity, min = 1, max, onChange }: Props) {
       </span>
       <button
         type="button"
-        className="stepper-btn"
+        className="stepper-btn stepper-btn-plus"
         onClick={inc}
         disabled={quantity >= max}
+        aria-label="数量を増やす"
       >
         ＋
       </button>

@@ -32,6 +32,53 @@ const STATUS_LABEL: Record<string, string> = {
   CANCEL_REQUESTED: "キャンセル処理中…",
 };
 
+function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="app">
+      <header className="topbar">
+        <p className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          セルフレジ
+        </p>
+      </header>
+      <main className="main">{children}</main>
+    </div>
+  );
+}
+
+function PaymentIcon({ type }: { type: PaymentType }) {
+  if (type === "QR_CODE") {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M3 3h8v8H3V3zm2 2v4h4V5H5zm6-2h2v2h-2V3zm4 0h6v6h-2V5h-2v2h-2V3zm-4 4h2v2h-2V7zm4 2h2v2h-2V9zm2 2h4v2h-4v-2zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10-2h2v2h-2v-2zm4 0h2v8h-6v-2h4v-6zm-4 4h2v4h-2v-4z"
+        />
+      </svg>
+    );
+  }
+
+  if (type === "CARD_PRESENT") {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11zM5.5 6a.5.5 0 0 0-.5.5V8h14V6.5a.5.5 0 0 0-.5-.5h-13zM5 11v6.5a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5V11H5zm2 3h4v2H7v-2z"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 2.25a4.75 4.75 0 1 1 0 9.5 4.75 4.75 0 0 1 0-9.5z"
+      />
+    </svg>
+  );
+}
+
 export function CheckoutApp() {
   const [product, setProduct] = useState<SellableProduct | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -110,18 +157,18 @@ export function CheckoutApp() {
 
   if (catalogLoading) {
     return (
-      <div className="app">
+      <AppShell>
         <section className="panel panel-center">
           <div className="spinner" aria-hidden="true" />
-          <p className="status-text">Square カタログを読み込んでいます…</p>
+          <p className="status-text">商品情報を読み込んでいます…</p>
         </section>
-      </div>
+      </AppShell>
     );
   }
 
   if (catalogError || !product) {
     return (
-      <div className="app">
+      <AppShell>
         <section className="panel panel-center">
           <h2 className="panel-title">商品を表示できません</h2>
           <p className="status-text">{catalogError ?? "不明なエラー"}</p>
@@ -133,141 +180,154 @@ export function CheckoutApp() {
             再読み込み
           </button>
         </section>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        <p className="eyebrow">Self Checkout</p>
-        <h1>セルフレジ</h1>
-      </header>
+    <AppShell>
+      {error && (
+        <div className="banner banner-error" role="alert">
+          {error}
+        </div>
+      )}
 
-      <main className="main">
-        {error && (
-          <div className="banner banner-error" role="alert">
-            {error}
-          </div>
-        )}
-
-        {screen === "cart" && (
-          <section className="panel" aria-labelledby="cart-title">
-            <h2 id="cart-title" className="panel-title">
-              ご利用内容
-            </h2>
-            <button
-              type="button"
-              className="product-card"
-              onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
-            >
-              <div>
-                <p className="product-name">{product.name}</p>
-                <p className="product-price">
-                  {formatMoney(product.unitPrice, product.currency)} / 単位
-                </p>
-              </div>
-              <span className="product-hint">タップで +1</span>
-            </button>
-
-            <div className="quantity-row">
-              <span className="quantity-label">数量</span>
-              <QuantityStepper
-                quantity={quantity}
-                max={MAX_QUANTITY}
-                onChange={setQuantity}
-              />
+      {screen === "cart" && (
+        <section className="panel" aria-labelledby="cart-title">
+          <h2 id="cart-title" className="panel-title">
+            カート
+          </h2>
+          <button
+            type="button"
+            className="line-item"
+            onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
+          >
+            <div>
+              <p className="product-name">{product.name}</p>
+              <p className="product-meta">
+                {formatMoney(product.unitPrice, product.currency)} / 単位 ·
+                タップで追加
+              </p>
             </div>
+            <p className="line-item-price">
+              {formatMoney(product.unitPrice * quantity, product.currency)}
+            </p>
+          </button>
 
-            <div className="total-row">
-              <span>お支払い合計</span>
+          <div className="quantity-row">
+            <span className="quantity-label">数量</span>
+            <QuantityStepper
+              quantity={quantity}
+              max={MAX_QUANTITY}
+              onChange={setQuantity}
+            />
+          </div>
+
+          <div className="summary">
+            <div className="summary-row">
+              <span>小計</span>
+              <span>{formatMoney(total, product.currency)}</span>
+            </div>
+            <div className="summary-row summary-total">
+              <span>合計</span>
               <strong className="total-amount">
                 {formatMoney(total, product.currency)}
               </strong>
             </div>
+          </div>
 
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={() => setScreen("payment")}
-            >
-              お支払い方法を選ぶ
-            </button>
-          </section>
-        )}
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => setScreen("payment")}
+          >
+            お支払いへ進む
+          </button>
+        </section>
+      )}
 
-        {screen === "payment" && (
-          <section className="panel" aria-labelledby="pay-title">
-            <h2 id="pay-title" className="panel-title">
-              お支払い方法
-            </h2>
-            <p className="panel-sub">
-              合計 {formatMoney(total, product.currency)}（{quantity} ×{" "}
-              {product.name}）
-            </p>
-            <ul className="payment-list">
-              {PAYMENT_METHODS.map((method: PaymentMethodOption) => (
-                <li key={method.type}>
-                  <button
-                    type="button"
-                    className="payment-btn"
-                    onClick={() => void startPayment(method.type)}
-                  >
+      {screen === "payment" && (
+        <section className="panel" aria-labelledby="pay-title">
+          <h2 id="pay-title" className="panel-title">
+            お支払い方法
+          </h2>
+          <p className="panel-sub">
+            合計 {formatMoney(total, product.currency)} ／ {quantity} ×{" "}
+            {product.name}
+          </p>
+          <ul className="payment-list">
+            {PAYMENT_METHODS.map((method: PaymentMethodOption) => (
+              <li key={method.type}>
+                <button
+                  type="button"
+                  className="payment-btn"
+                  onClick={() => void startPayment(method.type)}
+                >
+                  <span className="payment-icon">
+                    <PaymentIcon type={method.type} />
+                  </span>
+                  <span className="payment-copy">
                     <span className="payment-label">{method.label}</span>
                     {method.description ? (
                       <span className="payment-desc">{method.description}</span>
                     ) : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => setScreen("cart")}
-            >
-              数量を変更する
-            </button>
-          </section>
-        )}
+                  </span>
+                  <span className="payment-chevron" aria-hidden="true">
+                    ›
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => setScreen("cart")}
+          >
+            数量を変更する
+          </button>
+        </section>
+      )}
 
-        {(screen === "processing" ||
-          screen === "complete" ||
-          screen === "canceled") && (
-          <section className="panel panel-center" aria-live="polite">
-            {screen === "processing" && (
-              <>
-                <div className="spinner" aria-hidden="true" />
-                <h2 className="panel-title">決済中</h2>
-                <p className="status-text">{statusMessage}</p>
-                {selectedPayment && (
-                  <p className="muted">
-                    {
-                      PAYMENT_METHODS.find((m) => m.type === selectedPayment)
-                        ?.label
-                    }
-                  </p>
-                )}
-              </>
-            )}
-            {screen === "complete" && (
-              <>
-                <div className="icon-success" aria-hidden="true">
-                  ✓
-                </div>
-                <h2 className="panel-title">ありがとうございました</h2>
-                <p className="status-text">決済が完了しました</p>
-              </>
-            )}
-            {screen === "canceled" && (
-              <>
-                <h2 className="panel-title">キャンセルされました</h2>
-                <p className="status-text">最初の画面に戻ります…</p>
-              </>
-            )}
-          </section>
-        )}
-      </main>
-    </div>
+      {(screen === "processing" ||
+        screen === "complete" ||
+        screen === "canceled") && (
+        <section className="panel panel-center" aria-live="polite">
+          {screen === "processing" && (
+            <>
+              <div className="spinner" aria-hidden="true" />
+              <h2 className="panel-title">決済中</h2>
+              <p className="status-text">{statusMessage}</p>
+              {selectedPayment && (
+                <p className="muted">
+                  {
+                    PAYMENT_METHODS.find((m) => m.type === selectedPayment)
+                      ?.label
+                  }
+                </p>
+              )}
+            </>
+          )}
+          {screen === "complete" && (
+            <>
+              <div className="icon-success" aria-hidden="true">
+                ✓
+              </div>
+              <h2 className="panel-title">ありがとうございました</h2>
+              <p className="status-text">決済が完了しました</p>
+            </>
+          )}
+          {screen === "canceled" && (
+            <>
+              <div className="icon-cancel" aria-hidden="true">
+                ×
+              </div>
+              <h2 className="panel-title">キャンセルされました</h2>
+              <p className="status-text">最初の画面に戻ります…</p>
+            </>
+          )}
+        </section>
+      )}
+    </AppShell>
   );
 }
