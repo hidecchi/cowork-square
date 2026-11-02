@@ -32,18 +32,14 @@ function pickProduct(items: CatalogItem[]): SellableProduct {
     .filter((p): p is SellableProduct => p !== null);
 
   if (sellable.length === 0) {
-    throw new Error(
-      "Square カタログに価格付きの商品がありません。Square 管理画面で商品を確認してください。",
-    );
+    throw new Error("catalogNoPricedItems");
   }
 
   const variationFilter = process.env.NEXT_PUBLIC_CATALOG_VARIATION_ID?.trim();
   if (variationFilter) {
     const match = sellable.find((p) => p.catalogObjectId === variationFilter);
     if (!match) {
-      throw new Error(
-        "指定した NEXT_PUBLIC_CATALOG_VARIATION_ID の商品が見つかりません",
-      );
+      throw new Error("catalogVariationNotFound");
     }
     return match;
   }
@@ -52,9 +48,7 @@ function pickProduct(items: CatalogItem[]): SellableProduct {
   if (itemFilter) {
     const match = sellable.find((p) => p.itemId === itemFilter);
     if (!match) {
-      throw new Error(
-        "指定した NEXT_PUBLIC_CATALOG_ITEM_ID の商品が見つかりません",
-      );
+      throw new Error("catalogItemNotFound");
     }
     return match;
   }
@@ -63,16 +57,14 @@ function pickProduct(items: CatalogItem[]): SellableProduct {
     return sellable[0];
   }
 
-  throw new Error(
-    "カタログに複数商品があります。.env に NEXT_PUBLIC_CATALOG_ITEM_ID を設定してください。",
-  );
+  throw new Error("catalogMultipleItems");
 }
 
 export async function fetchSellableProduct(): Promise<SellableProduct> {
   const res = await fetch("/api/catalog-items", { headers: apiHeaders() });
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error ?? "商品情報の取得に失敗しました");
+    throw new Error(data.error ?? "catalogFetchFailed");
   }
   const items = (await res.json()) as CatalogItem[];
   return pickProduct(items);

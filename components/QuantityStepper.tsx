@@ -3,9 +3,18 @@ type Props = {
   min?: number;
   max: number;
   onChange: (quantity: number) => void;
+  decreaseLabel: string;
+  increaseLabel: string;
 };
 
-export function QuantityStepper({ quantity, min = 1, max, onChange }: Props) {
+export function QuantityStepper({
+  quantity,
+  min = 1,
+  max,
+  onChange,
+  decreaseLabel,
+  increaseLabel,
+}: Props) {
   const dec = () => onChange(Math.max(min, quantity - 1));
   const inc = () => onChange(Math.min(max, quantity + 1));
 
@@ -16,7 +25,7 @@ export function QuantityStepper({ quantity, min = 1, max, onChange }: Props) {
         className="stepper-btn"
         onClick={dec}
         disabled={quantity <= min}
-        aria-label="数量を減らす"
+        aria-label={decreaseLabel}
       >
         −
       </button>
@@ -28,7 +37,7 @@ export function QuantityStepper({ quantity, min = 1, max, onChange }: Props) {
         className="stepper-btn stepper-btn-plus"
         onClick={inc}
         disabled={quantity >= max}
-        aria-label="数量を増やす"
+        aria-label={increaseLabel}
       >
         ＋
       </button>

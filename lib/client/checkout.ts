@@ -54,12 +54,12 @@ export async function createTerminalCheckout(
 
   const data = (await res.json()) as TerminalCheckoutResponse;
   if (!res.ok) {
-    throw new Error(data.error ?? "決済の開始に失敗しました");
+    throw new Error(data.error ?? "checkoutStartFailed");
   }
 
   const checkoutId = data.checkout?.id;
   if (!checkoutId) {
-    throw new Error("決済 ID を取得できませんでした");
+    throw new Error("checkoutIdMissing");
   }
   return checkoutId;
 }
@@ -75,7 +75,7 @@ export async function getCheckoutStatus(
   });
   const data = (await res.json()) as CheckoutStatusResponse;
   if (!res.ok) {
-    throw new Error(data.error ?? "決済状態の確認に失敗しました");
+    throw new Error(data.error ?? "checkoutStatusFailed");
   }
   return data;
 }
@@ -90,7 +90,7 @@ export async function cancelTerminalCheckout(
   });
   const data = (await res.json()) as { error?: string };
   if (!res.ok) {
-    throw new Error(data.error ?? "決済のキャンセルに失敗しました");
+    throw new Error(data.error ?? "checkoutCancelFailed");
   }
 }
 

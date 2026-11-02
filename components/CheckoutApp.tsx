@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { fetchSellableProduct } from "@/lib/client/catalog";
 import {
@@ -11,32 +12,34 @@ import {
 } from "@/lib/client/checkout";
 import { MAX_QUANTITY } from "@/lib/config";
 import {
-  PAYMENT_METHODS,
-  type PaymentMethodOption,
-  type PaymentType,
-} from "@/lib/paymentMethods";
+  DEFAULT_LOCALE,
+  formatMoney,
+  isLocale,
+  LOCALE_STORAGE_KEY,
+  type Locale,
+  messages,
+  resolveMessage,
+  statusMessage,
+} from "@/lib/i18n";
+import { PAYMENT_METHODS, type PaymentType } from "@/lib/paymentMethods";
 import type { SellableProduct } from "@/lib/types/catalog";
 
 type Screen = "cart" | "payment" | "processing" | "complete" | "canceled";
 
-function formatMoney(amount: number, currency: string): string {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency,
-  }).format(amount);
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: "端末で決済を開始しています…",
-  IN_PROGRESS: "決済処理中です。端末の指示に従ってください",
-  COMPLETED: "決済が完了しました",
-  CANCELED: "決済がキャンセルされました",
-  CANCEL_REQUESTED: "キャンセル処理中…",
-};
-
-function AppShell({ children }: { children: React.ReactNode }) {
+function AppShell({
+  locale,
+  onLocaleChange,
+  children,
+}: {
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
+  children: React.ReactNode;
+}) {
   return (
     <div className="app">
+      <div className="lang-bar">
+        <LanguageSwitch locale={locale} onChange={onLocaleChange} />
+      </div>
       <main className="main">{children}</main>
     </div>
   );
@@ -78,9 +81,13 @@ function PaymentIcon({ type }: { type: PaymentType }) {
 function RestartButton({
   onClick,
   busy = false,
+  label,
+  busyLabel,
 }: {
   onClick: () => void;
   busy?: boolean;
+  label: string;
+  busyLabel: string;
 }) {
   return (
     <button
@@ -89,12 +96,15 @@ function RestartButton({
       onClick={onClick}
       disabled={busy}
     >
-      {busy ? "キャンセルしています…" : "はじめからやり直す"}
+      {busy ? busyLabel : label}
     </button>
   );
 }
 
 export function CheckoutApp() {
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  const t = messages[locale];
+
   const [product, setProduct] = useState<SellableProduct | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -104,7 +114,7 @@ export function CheckoutApp() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentType | null>(
     null,
   );
-  const [statusMessage, setStatusMessage] = useState("");
+  const [checkoutStatus, setCheckoutStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
   const [restarting, setRestarting] = useState(false);
@@ -114,6 +124,20 @@ export function CheckoutApp() {
   const pollAbortRef = useRef<AbortController | null>(null);
   const resetTimerRef = useRef<number | null>(null);
   const sessionRef = useRef(0);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (isLocale(saved)) setLocale(saved);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const changeLocale = (next: Locale) => {
+    setLocale(next);
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +150,7 @@ export function CheckoutApp() {
       .catch((err) => {
         if (!cancelled) {
           setCatalogError(
-            err instanceof Error ? err.message : "商品の読み込みに失敗しました",
+            err instanceof Error ? err.message : "catalogLoadFailed",
           );
         }
       })
@@ -162,7 +186,7 @@ export function CheckoutApp() {
     setScreen("cart");
     setQuantity(1);
     setSelectedPayment(null);
-    setStatusMessage("");
+    setCheckoutStatus("");
     setError(null);
     setRestarting(false);
   }, []);
@@ -203,7 +227,7 @@ export function CheckoutApp() {
     setError(null);
     setSelectedPayment(paymentType);
     setScreen("processing");
-    setStatusMessage("決済を準備しています…");
+    setCheckoutStatus("PREPARING");
 
     const session = sessionRef.current;
     const ac = new AbortController();
@@ -227,7 +251,7 @@ export function CheckoutApp() {
       const result = await pollCheckoutUntilDone(
         id,
         (status) => {
-          setStatusMessage(STATUS_LABEL[status] ?? "処理中…");
+          setCheckoutStatus(status);
         },
         { signal: ac.signal },
       );
@@ -249,7 +273,7 @@ export function CheckoutApp() {
       ) {
         return;
       }
-      setError(err instanceof Error ? err.message : "エラーが発生しました");
+      setError(err instanceof Error ? err.message : "genericError");
       setScreen("payment");
       checkoutIdRef.current = null;
       setCheckoutId(null);
@@ -262,10 +286,10 @@ export function CheckoutApp() {
 
   if (catalogLoading) {
     return (
-      <AppShell>
+      <AppShell locale={locale} onLocaleChange={changeLocale}>
         <section className="panel panel-center">
           <div className="spinner" aria-hidden="true" />
-          <p className="status-text">商品情報を読み込んでいます…</p>
+          <p className="status-text">{t.loadingCatalog}</p>
         </section>
       </AppShell>
     );
@@ -273,16 +297,18 @@ export function CheckoutApp() {
 
   if (catalogError || !product) {
     return (
-      <AppShell>
+      <AppShell locale={locale} onLocaleChange={changeLocale}>
         <section className="panel panel-center">
-          <h2 className="panel-title">商品を表示できません</h2>
-          <p className="status-text">{catalogError ?? "不明なエラー"}</p>
+          <h2 className="panel-title">{t.catalogUnavailable}</h2>
+          <p className="status-text">
+            {resolveMessage(t, catalogError, t.unknownError)}
+          </p>
           <button
             type="button"
             className="primary-btn"
             onClick={() => window.location.reload()}
           >
-            再読み込み
+            {t.reload}
           </button>
         </section>
       </AppShell>
@@ -290,15 +316,15 @@ export function CheckoutApp() {
   }
 
   return (
-    <AppShell>
+    <AppShell locale={locale} onLocaleChange={changeLocale}>
       {error && (
         <div className="banner banner-error" role="alert">
-          {error}
+          {resolveMessage(t, error, t.genericError)}
         </div>
       )}
 
       {screen === "cart" && (
-        <section className="panel" aria-label="カート">
+        <section className="panel" aria-label={t.cart}>
           <button
             type="button"
             className="line-item"
@@ -307,29 +333,35 @@ export function CheckoutApp() {
             <div>
               <p className="product-name">{product.name}</p>
               <p className="product-meta">
-                {formatMoney(product.unitPrice, product.currency)} / 単位 ·
-                タップで追加
+                {formatMoney(product.unitPrice, product.currency, locale)}{" "}
+                {t.perUnitTapToAdd}
               </p>
             </div>
             <p className="line-item-price">
-              {formatMoney(product.unitPrice * quantity, product.currency)}
+              {formatMoney(
+                product.unitPrice * quantity,
+                product.currency,
+                locale,
+              )}
             </p>
           </button>
 
           <div className="quantity-row">
-            <span className="quantity-label">数量</span>
+            <span className="quantity-label">{t.quantity}</span>
             <QuantityStepper
               quantity={quantity}
               max={MAX_QUANTITY}
               onChange={setQuantity}
+              decreaseLabel={t.decreaseQuantity}
+              increaseLabel={t.increaseQuantity}
             />
           </div>
 
           <div className="summary">
             <div className="summary-row summary-total">
-              <span>合計</span>
+              <span>{t.total}</span>
               <strong className="total-amount">
-                {formatMoney(total, product.currency)}
+                {formatMoney(total, product.currency, locale)}
               </strong>
             </div>
           </div>
@@ -339,7 +371,7 @@ export function CheckoutApp() {
             className="primary-btn"
             onClick={() => setScreen("payment")}
           >
-            お支払いへ進む
+            {t.continueToPayment}
           </button>
         </section>
       )}
@@ -348,42 +380,45 @@ export function CheckoutApp() {
         <section className="panel" aria-labelledby="pay-title">
           <div className="panel-head">
             <h2 id="pay-title" className="panel-title">
-              お支払い方法
+              {t.paymentMethods}
             </h2>
             <p className="panel-head-total">
-              合計 {formatMoney(total, product.currency)}
+              {t.total} {formatMoney(total, product.currency, locale)}
             </p>
           </div>
           <ul className="payment-list">
-            {PAYMENT_METHODS.map((method: PaymentMethodOption) => (
-              <li key={method.type}>
-                <button
-                  type="button"
-                  className="payment-btn"
-                  onClick={() => void startPayment(method.type)}
-                >
-                  <span className="payment-icon">
-                    <PaymentIcon type={method.type} />
-                  </span>
-                  <span className="payment-copy">
-                    <span className="payment-label">{method.label}</span>
-                    {method.description ? (
-                      <span className="payment-desc">{method.description}</span>
-                    ) : null}
-                  </span>
-                  <span className="payment-chevron" aria-hidden="true">
-                    ›
-                  </span>
-                </button>
-              </li>
-            ))}
+            {PAYMENT_METHODS.map((type: PaymentType) => {
+              const copy = t.payments[type];
+              return (
+                <li key={type}>
+                  <button
+                    type="button"
+                    className="payment-btn"
+                    onClick={() => void startPayment(type)}
+                  >
+                    <span className="payment-icon">
+                      <PaymentIcon type={type} />
+                    </span>
+                    <span className="payment-copy">
+                      <span className="payment-label">{copy.label}</span>
+                      {copy.description ? (
+                        <span className="payment-desc">{copy.description}</span>
+                      ) : null}
+                    </span>
+                    <span className="payment-chevron" aria-hidden="true">
+                      ›
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           <button
             type="button"
             className="ghost-btn"
             onClick={() => setScreen("cart")}
           >
-            数量を変更する
+            {t.changeQuantity}
           </button>
         </section>
       )}
@@ -395,19 +430,16 @@ export function CheckoutApp() {
           {screen === "processing" && (
             <>
               <div className="spinner" aria-hidden="true" />
-              <h2 className="panel-title">決済中</h2>
-              <p className="status-text">{statusMessage}</p>
+              <h2 className="panel-title">{t.processing}</h2>
+              <p className="status-text">{statusMessage(t, checkoutStatus)}</p>
               {selectedPayment && (
-                <p className="muted">
-                  {
-                    PAYMENT_METHODS.find((m) => m.type === selectedPayment)
-                      ?.label
-                  }
-                </p>
+                <p className="muted">{t.payments[selectedPayment].label}</p>
               )}
               <RestartButton
                 onClick={() => void startOver()}
                 busy={restarting}
+                label={t.startOver}
+                busyLabel={t.canceling}
               />
             </>
           )}
@@ -416,9 +448,13 @@ export function CheckoutApp() {
               <div className="icon-success" aria-hidden="true">
                 ✓
               </div>
-              <h2 className="panel-title">ありがとうございました</h2>
-              <p className="status-text">決済が完了しました</p>
-              <RestartButton onClick={() => void startOver()} />
+              <h2 className="panel-title">{t.thankYou}</h2>
+              <p className="status-text">{t.paymentComplete}</p>
+              <RestartButton
+                onClick={() => void startOver()}
+                label={t.startOver}
+                busyLabel={t.canceling}
+              />
             </>
           )}
           {screen === "canceled" && (
@@ -426,9 +462,13 @@ export function CheckoutApp() {
               <div className="icon-cancel" aria-hidden="true">
                 ×
               </div>
-              <h2 className="panel-title">キャンセルされました</h2>
-              <p className="status-text">最初の画面に戻ります…</p>
-              <RestartButton onClick={() => void startOver()} />
+              <h2 className="panel-title">{t.paymentCanceled}</h2>
+              <p className="status-text">{t.returningToStart}</p>
+              <RestartButton
+                onClick={() => void startOver()}
+                label={t.startOver}
+                busyLabel={t.canceling}
+              />
             </>
           )}
         </section>

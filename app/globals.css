@@ -55,6 +55,69 @@ button {
   flex-direction: column;
 }
 
+.lang-bar {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 20;
+  transform: translateY(-50%);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lang-switch {
+  display: inline-flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 0;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.lang-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 3rem;
+  height: 4.5rem;
+  min-width: 3rem;
+  min-height: 4.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.08em;
+}
+
+.lang-switch button.lang-switch-en {
+  writing-mode: horizontal-tb;
+  letter-spacing: 0.04em;
+}
+
+.lang-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #ffffff;
+}
+
 .main {
   flex: 1;
   display: flex;
@@ -143,7 +206,8 @@ button {
 .primary-btn:focus-visible,
 .ghost-btn:focus-visible,
 .payment-btn:focus-visible,
-.stepper-btn:focus-visible {
+.stepper-btn:focus-visible,
+.lang-switch button:focus-visible {
   outline: 3px solid rgb(0 102 255 / 28%);
   outline-offset: 2px;
 }
