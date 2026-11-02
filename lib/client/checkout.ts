@@ -1,3 +1,7 @@
+import {
+  CHECKOUT_POLL_INTERVAL_MS,
+  CHECKOUT_POLL_MAX_CONSECUTIVE_ERRORS,
+} from "@/lib/config";
 import type { PaymentType } from "@/lib/paymentMethods";
 import type { SellableProduct } from "@/lib/types/catalog";
 
@@ -101,20 +105,41 @@ export function isAbortError(err: unknown): boolean {
 export function pollCheckoutUntilDone(
   checkoutId: string,
   onStatus: (status: string) => void,
-  options?: { intervalMs?: number; signal?: AbortSignal },
+  options?: {
+    intervalMs?: number;
+    maxConsecutiveErrors?: number;
+    signal?: AbortSignal;
+  },
 ): Promise<"completed" | "canceled"> {
-  const intervalMs = options?.intervalMs ?? 2000;
+  const intervalMs = options?.intervalMs ?? CHECKOUT_POLL_INTERVAL_MS;
+  const maxConsecutiveErrors =
+    options?.maxConsecutiveErrors ?? CHECKOUT_POLL_MAX_CONSECUTIVE_ERRORS;
   const signal = options?.signal;
 
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let consecutiveErrors = 0;
+    let settled = false;
 
-    const stop = (err?: unknown) => {
+    const clearTimer = () => {
       if (timer !== undefined) {
         clearTimeout(timer);
         timer = undefined;
       }
+    };
+
+    const stop = (err?: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimer();
       if (err) reject(err);
+    };
+
+    const finish = (result: "completed" | "canceled") => {
+      if (settled) return;
+      settled = true;
+      clearTimer();
+      resolve(result);
     };
 
     if (signal?.aborted) {
@@ -129,6 +154,7 @@ export function pollCheckoutUntilDone(
     );
 
     const tick = async () => {
+      if (settled) return;
       if (signal?.aborted) {
         stop(new DOMException("Aborted", "AbortError"));
         return;
@@ -136,19 +162,21 @@ export function pollCheckoutUntilDone(
 
       try {
         const { status } = await getCheckoutStatus(checkoutId, signal);
+        if (settled) return;
         if (signal?.aborted) {
           stop(new DOMException("Aborted", "AbortError"));
           return;
         }
 
+        consecutiveErrors = 0;
         onStatus(status);
 
         if (status === "COMPLETED") {
-          resolve("completed");
+          finish("completed");
           return;
         }
-        if (status === "CANCELED" || status === "CANCEL_REQUESTED") {
-          resolve("canceled");
+        if (status === "CANCELED") {
+          finish("canceled");
           return;
         }
 
@@ -156,7 +184,21 @@ export function pollCheckoutUntilDone(
           void tick();
         }, intervalMs);
       } catch (err) {
-        stop(err);
+        if (settled) return;
+        if (isAbortError(err) || signal?.aborted) {
+          stop(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+
+        consecutiveErrors += 1;
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          stop(err);
+          return;
+        }
+
+        timer = setTimeout(() => {
+          void tick();
+        }, intervalMs);
       }
     };
     void tick();

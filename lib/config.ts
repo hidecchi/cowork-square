@@ -1,1 +1,3 @@
 export const MAX_QUANTITY = 20;
+export const CHECKOUT_POLL_INTERVAL_MS = 2000;
+export const CHECKOUT_POLL_MAX_CONSECUTIVE_ERRORS = 8;

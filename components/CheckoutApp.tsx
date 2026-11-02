@@ -124,6 +124,7 @@ export function CheckoutApp() {
   const pollAbortRef = useRef<AbortController | null>(null);
   const resetTimerRef = useRef<number | null>(null);
   const sessionRef = useRef(0);
+  const paymentLockRef = useRef(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
@@ -182,6 +183,7 @@ export function CheckoutApp() {
     pollAbortRef.current?.abort();
     pollAbortRef.current = null;
     checkoutIdRef.current = null;
+    paymentLockRef.current = false;
     setCheckoutId(null);
     setScreen("cart");
     setQuantity(1);
@@ -223,7 +225,9 @@ export function CheckoutApp() {
   };
 
   const startPayment = async (paymentType: PaymentType) => {
-    if (!product) return;
+    if (!product || paymentLockRef.current) return;
+    paymentLockRef.current = true;
+
     setError(null);
     setSelectedPayment(paymentType);
     setScreen("processing");
@@ -273,6 +277,19 @@ export function CheckoutApp() {
       ) {
         return;
       }
+
+      const id = checkoutIdRef.current;
+      if (id) {
+        try {
+          await cancelTerminalCheckout(id);
+        } catch {
+          // 完了済み・キャンセル済みでも支払い画面に戻す
+        }
+      }
+
+      if (session !== sessionRef.current) return;
+
+      paymentLockRef.current = false;
       setError(err instanceof Error ? err.message : "genericError");
       setScreen("payment");
       checkoutIdRef.current = null;
