@@ -350,13 +350,14 @@ export function CheckoutApp() {
 
       {screen === "payment" && (
         <section className="panel" aria-labelledby="pay-title">
-          <h2 id="pay-title" className="panel-title">
-            お支払い方法
-          </h2>
-          <p className="panel-sub">
-            合計 {formatMoney(total, product.currency)} ／ {quantity} ×{" "}
-            {product.name}
-          </p>
+          <div className="panel-head">
+            <h2 id="pay-title" className="panel-title">
+              お支払い方法
+            </h2>
+            <p className="panel-head-total">
+              合計 {formatMoney(total, product.currency)}
+            </p>
+          </div>
           <ul className="payment-list">
             {PAYMENT_METHODS.map((method: PaymentMethodOption) => (
               <li key={method.type}>
@@ -388,7 +389,6 @@ export function CheckoutApp() {
           >
             数量を変更する
           </button>
-          <RestartButton onClick={() => void startOver()} />
         </section>
       )}
 
