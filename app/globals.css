@@ -49,34 +49,10 @@ button {
 .app {
   max-width: 640px;
   margin: 0 auto;
-  padding: 0 1.25rem 2.5rem;
+  padding: 1.5rem 1.25rem 2.5rem;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  height: 4.5rem;
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.brand-mark {
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 0.4rem;
-  background: var(--accent);
-  flex-shrink: 0;
 }
 
 .main {
@@ -140,7 +116,7 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.15rem 0 1.25rem;
+  padding: 0 0 1.25rem;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: transparent;
@@ -428,11 +404,5 @@ button {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@media (min-width: 720px) {
-  .app {
-    padding-top: 1rem;
   }
 }

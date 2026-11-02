@@ -37,12 +37,6 @@ const STATUS_LABEL: Record<string, string> = {
 function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app">
-      <header className="topbar">
-        <p className="brand">
-          <span className="brand-mark" aria-hidden="true" />
-          セルフレジ
-        </p>
-      </header>
       <main className="main">{children}</main>
     </div>
   );
@@ -304,10 +298,7 @@ export function CheckoutApp() {
       )}
 
       {screen === "cart" && (
-        <section className="panel" aria-labelledby="cart-title">
-          <h2 id="cart-title" className="panel-title">
-            カート
-          </h2>
+        <section className="panel" aria-label="カート">
           <button
             type="button"
             className="line-item"
