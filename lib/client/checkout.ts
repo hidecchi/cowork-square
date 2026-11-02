@@ -66,10 +66,12 @@ export async function createTerminalCheckout(
 
 export async function getCheckoutStatus(
   checkoutId: string,
+  signal?: AbortSignal,
 ): Promise<CheckoutStatusResponse> {
   const qs = new URLSearchParams({ checkoutId });
   const res = await fetch(`/api/get-checkout-status?${qs}`, {
     headers: apiHeaders(),
+    signal,
   });
   const data = (await res.json()) as CheckoutStatusResponse;
   if (!res.ok) {
@@ -78,15 +80,67 @@ export async function getCheckoutStatus(
   return data;
 }
 
+export async function cancelTerminalCheckout(
+  checkoutId: string,
+): Promise<void> {
+  const res = await fetch("/api/cancel-terminal-checkout", {
+    method: "POST",
+    headers: apiHeaders(true),
+    body: JSON.stringify({ checkoutId }),
+  });
+  const data = (await res.json()) as { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error ?? "決済のキャンセルに失敗しました");
+  }
+}
+
+export function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
 export function pollCheckoutUntilDone(
   checkoutId: string,
   onStatus: (status: string) => void,
-  intervalMs = 2000,
+  options?: { intervalMs?: number; signal?: AbortSignal },
 ): Promise<"completed" | "canceled"> {
+  const intervalMs = options?.intervalMs ?? 2000;
+  const signal = options?.signal;
+
   return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const stop = (err?: unknown) => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      if (err) reject(err);
+    };
+
+    if (signal?.aborted) {
+      stop(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    signal?.addEventListener(
+      "abort",
+      () => stop(new DOMException("Aborted", "AbortError")),
+      { once: true },
+    );
+
     const tick = async () => {
+      if (signal?.aborted) {
+        stop(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+
       try {
-        const { status } = await getCheckoutStatus(checkoutId);
+        const { status } = await getCheckoutStatus(checkoutId, signal);
+        if (signal?.aborted) {
+          stop(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+
         onStatus(status);
 
         if (status === "COMPLETED") {
@@ -98,9 +152,11 @@ export function pollCheckoutUntilDone(
           return;
         }
 
-        setTimeout(tick, intervalMs);
+        timer = setTimeout(() => {
+          void tick();
+        }, intervalMs);
       } catch (err) {
-        reject(err);
+        stop(err);
       }
     };
     void tick();

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { fetchSellableProduct } from "@/lib/client/catalog";
 import {
+  cancelTerminalCheckout,
   createTerminalCheckout,
+  isAbortError,
   pollCheckoutUntilDone,
 } from "@/lib/client/checkout";
 import { MAX_QUANTITY } from "@/lib/config";
@@ -79,6 +81,25 @@ function PaymentIcon({ type }: { type: PaymentType }) {
   );
 }
 
+function RestartButton({
+  onClick,
+  busy = false,
+}: {
+  onClick: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className="ghost-btn"
+      onClick={onClick}
+      disabled={busy}
+    >
+      {busy ? "キャンセルしています…" : "はじめからやり直す"}
+    </button>
+  );
+}
+
 export function CheckoutApp() {
   const [product, setProduct] = useState<SellableProduct | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -91,6 +112,14 @@ export function CheckoutApp() {
   );
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [checkoutId, setCheckoutId] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
+
+  const checkoutIdRef = useRef<string | null>(null);
+  const inFlightCheckoutRef = useRef<Promise<string> | null>(null);
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const resetTimerRef = useRef<number | null>(null);
+  const sessionRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,15 +144,65 @@ export function CheckoutApp() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      pollAbortRef.current?.abort();
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
   const total = product !== null ? product.unitPrice * quantity : 0;
 
   const resetToCart = useCallback(() => {
+    sessionRef.current += 1;
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = null;
+    checkoutIdRef.current = null;
+    setCheckoutId(null);
     setScreen("cart");
     setQuantity(1);
     setSelectedPayment(null);
     setStatusMessage("");
     setError(null);
+    setRestarting(false);
   }, []);
+
+  const startOver = async () => {
+    if (restarting) return;
+    setRestarting(true);
+    sessionRef.current += 1;
+    pollAbortRef.current?.abort();
+
+    try {
+      if (screen === "processing") {
+        let id = checkoutIdRef.current ?? checkoutId;
+        if (!id && inFlightCheckoutRef.current) {
+          try {
+            id = await inFlightCheckoutRef.current;
+            checkoutIdRef.current = id;
+            setCheckoutId(id);
+          } catch {
+            id = null;
+          }
+        }
+        if (id) {
+          try {
+            await cancelTerminalCheckout(id);
+          } catch {
+            // 完了済み・キャンセル済みでもカートに戻す
+          }
+        }
+      }
+    } finally {
+      resetToCart();
+    }
+  };
 
   const startPayment = async (paymentType: PaymentType) => {
     if (!product) return;
@@ -132,26 +211,58 @@ export function CheckoutApp() {
     setScreen("processing");
     setStatusMessage("決済を準備しています…");
 
+    const session = sessionRef.current;
+    const ac = new AbortController();
+    pollAbortRef.current = ac;
+
+    const createPromise = createTerminalCheckout(
+      product,
+      quantity,
+      paymentType,
+    );
+    inFlightCheckoutRef.current = createPromise;
+
     try {
-      const checkoutId = await createTerminalCheckout(
-        product,
-        quantity,
-        paymentType,
+      const id = await createPromise;
+      if (session !== sessionRef.current) return;
+      checkoutIdRef.current = id;
+      setCheckoutId(id);
+
+      if (ac.signal.aborted) return;
+
+      const result = await pollCheckoutUntilDone(
+        id,
+        (status) => {
+          setStatusMessage(STATUS_LABEL[status] ?? "処理中…");
+        },
+        { signal: ac.signal },
       );
-      const result = await pollCheckoutUntilDone(checkoutId, (status) => {
-        setStatusMessage(STATUS_LABEL[status] ?? "処理中…");
-      });
+
+      if (session !== sessionRef.current || ac.signal.aborted) return;
 
       if (result === "completed") {
         setScreen("complete");
-        window.setTimeout(resetToCart, 4000);
+        resetTimerRef.current = window.setTimeout(resetToCart, 4000);
       } else {
         setScreen("canceled");
-        window.setTimeout(resetToCart, 3500);
+        resetTimerRef.current = window.setTimeout(resetToCart, 3500);
       }
     } catch (err) {
+      if (
+        session !== sessionRef.current ||
+        isAbortError(err) ||
+        ac.signal.aborted
+      ) {
+        return;
+      }
       setError(err instanceof Error ? err.message : "エラーが発生しました");
       setScreen("payment");
+      checkoutIdRef.current = null;
+      setCheckoutId(null);
+    } finally {
+      if (inFlightCheckoutRef.current === createPromise) {
+        inFlightCheckoutRef.current = null;
+      }
     }
   };
 
@@ -286,6 +397,7 @@ export function CheckoutApp() {
           >
             数量を変更する
           </button>
+          <RestartButton onClick={() => void startOver()} />
         </section>
       )}
 
@@ -306,6 +418,10 @@ export function CheckoutApp() {
                   }
                 </p>
               )}
+              <RestartButton
+                onClick={() => void startOver()}
+                busy={restarting}
+              />
             </>
           )}
           {screen === "complete" && (
@@ -315,6 +431,7 @@ export function CheckoutApp() {
               </div>
               <h2 className="panel-title">ありがとうございました</h2>
               <p className="status-text">決済が完了しました</p>
+              <RestartButton onClick={() => void startOver()} />
             </>
           )}
           {screen === "canceled" && (
@@ -324,6 +441,7 @@ export function CheckoutApp() {
               </div>
               <h2 className="panel-title">キャンセルされました</h2>
               <p className="status-text">最初の画面に戻ります…</p>
+              <RestartButton onClick={() => void startOver()} />
             </>
           )}
         </section>

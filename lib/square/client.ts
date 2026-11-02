@@ -158,6 +158,13 @@ export class SquareClient {
     );
   }
 
+  async cancelTerminalCheckout(checkoutId: string): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/v2/terminals/checkouts/${encodeURIComponent(checkoutId)}/cancel`,
+    );
+  }
+
   async listCatalogObjects(types: string): Promise<unknown[]> {
     const objects: unknown[] = [];
     let cursor: string | undefined;
