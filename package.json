@@ -24,5 +24,12 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "typescript": "^5.9.3"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.22.1",
+      "onFail": "download"
+    }
   }
 }
