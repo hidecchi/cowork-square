@@ -25,7 +25,7 @@ export const PAYMENT_METHODS: PaymentMethodOption[] = [
   {
     type: "CARD_PRESENT",
     label: "クレジット・デビット",
-    description: "タッチ決済",
+    description: "タッチ / 挿入",
   },
   {
     type: "FELICA_ID",

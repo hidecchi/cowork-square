@@ -326,10 +326,6 @@ export function CheckoutApp() {
           </div>
 
           <div className="summary">
-            <div className="summary-row">
-              <span>小計</span>
-              <span>{formatMoney(total, product.currency)}</span>
-            </div>
             <div className="summary-row summary-total">
               <span>合計</span>
               <strong className="total-amount">
