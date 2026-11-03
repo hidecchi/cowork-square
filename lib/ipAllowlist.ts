@@ -24,15 +24,25 @@ export function normalizeIp(value: string): string {
   return ip.toLowerCase();
 }
 
+function isOnRender(): boolean {
+  return process.env.RENDER === "true";
+}
+
 export function getClientIp(request: Request): string | null {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const requestIp = (request as Request & { ip?: unknown }).ip;
-  const candidates = [
+  // Render は Cloudflare 配下。CF-Connecting-IP が実クライアントで、
+  // X-Forwarded-For はクライアントが先頭を付けられるので信用しない。
+  const candidates: Array<string | null> = [
     request.headers.get("cf-connecting-ip"),
+    request.headers.get("true-client-ip"),
     request.headers.get("x-real-ip"),
-    forwarded?.split(",")[0],
-    typeof requestIp === "string" ? requestIp : null,
   ];
+
+  if (!isOnRender()) {
+    const forwarded = request.headers.get("x-forwarded-for");
+    const requestIp = (request as Request & { ip?: unknown }).ip;
+    candidates.push(forwarded?.split(",")[0] ?? null);
+    candidates.push(typeof requestIp === "string" ? requestIp : null);
+  }
 
   for (const raw of candidates) {
     if (!raw) continue;
