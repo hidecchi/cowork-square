@@ -13,6 +13,7 @@ import {
 import { MAX_QUANTITY } from "@/lib/config";
 import {
   DEFAULT_LOCALE,
+  displayProductName,
   formatMoney,
   isLocale,
   LOCALE_STORAGE_KEY,
@@ -348,7 +349,9 @@ export function CheckoutApp() {
             onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
           >
             <div>
-              <p className="product-name">{product.name}</p>
+              <p className="product-name">
+                {displayProductName(product.name, locale)}
+              </p>
               <p className="product-meta">
                 {formatMoney(product.unitPrice, product.currency, locale)}{" "}
                 {t.perUnitTapToAdd}

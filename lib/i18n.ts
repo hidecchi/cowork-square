@@ -200,6 +200,15 @@ export function isLocale(value: string | null): value is Locale {
   return value === "ja" || value === "en";
 }
 
+const ENTRY_FEE_CATALOG_NAME = "入場料";
+
+export function displayProductName(name: string, locale: Locale): string {
+  if (locale === "en" && name.trim() === ENTRY_FEE_CATALOG_NAME) {
+    return "Entry Fee";
+  }
+  return name;
+}
+
 export function formatMoney(
   amount: number,
   currency: string,
