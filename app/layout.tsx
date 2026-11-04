@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const notoSansJp = Noto_Sans_JP({
@@ -41,7 +42,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className={notoSansJp.variable}>
-      <body className={notoSansJp.className}>{children}</body>
+      <body className={notoSansJp.className}>
+        <Script
+          id="kiosk-back-lock"
+          src="/kiosk-back-lock.js"
+          strategy="beforeInteractive"
+        />
+        {children}
+      </body>
     </html>
   );
 }
