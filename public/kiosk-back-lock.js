@@ -1,4 +1,4 @@
-(function () {
+(() => {
   if (window.__kioskBackLockInstalled) return;
   window.__kioskBackLockInstalled = true;
 
@@ -17,7 +17,7 @@
 
   lock();
 
-  window.addEventListener("popstate", function () {
+  window.addEventListener("popstate", () => {
     lock();
     window.dispatchEvent(new Event("kioskback"));
   });

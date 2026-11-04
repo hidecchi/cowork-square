@@ -44,7 +44,9 @@ export function getSquareEnv(): SquareEnv {
 
 export function assertApiKey(request: Request): void {
   const expected = process.env.API_KEY?.trim();
-  if (!expected) return;
+  if (!expected) {
+    throw new HttpError(500, "API_KEY is not configured");
+  }
   const key = request.headers.get("X-Api-Key");
   if (!key || key !== expected) {
     throw new HttpError(401, "Unauthorized");
