@@ -24,6 +24,7 @@ import {
 } from "@/lib/i18n";
 import { PAYMENT_METHODS, type PaymentType } from "@/lib/paymentMethods";
 import type { SellableProduct } from "@/lib/types/catalog";
+import { useKioskBackLock } from "@/lib/useKioskBackLock";
 
 type Screen = "cart" | "payment" | "processing" | "complete" | "canceled";
 
@@ -126,6 +127,14 @@ export function CheckoutApp() {
   const resetTimerRef = useRef<number | null>(null);
   const sessionRef = useRef(0);
   const paymentLockRef = useRef(false);
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+
+  useKioskBackLock(() => {
+    if (screenRef.current === "payment") {
+      setScreen("cart");
+    }
+  });
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
